@@ -6,6 +6,7 @@ import {initializeApp} from "firebase/app"
 import logo from "./assets/logo_icon.png";
 import { EnumValues } from "@camberi/firecms";
 import { textSearchController } from "./text_search";
+import { CustomLoginView } from "./CustomLoginView";
 
 // import { initializeApp, firestore } from "firebase-admin"
 
@@ -103,6 +104,12 @@ type Category = {
     imageURL: string;
     name: string;
     top: boolean;
+    
+}
+
+type SubCategory = {
+    imageURL: string;
+    name: string;
     
 }
 
@@ -237,6 +244,7 @@ const cartCollection = buildCollection<Cart>({
     textSearchEnabled:true,
 
     group: "AuzaarPay",
+    icon: "ShoppingCart",
 
     singularName: "Cart",
     path: "userCarts",
@@ -285,6 +293,7 @@ const rolesCollection = buildCollection<Role>({
     group: "AuzaarPay",
     
     name: "Roles",
+    icon:"People",
     singularName: "Role",
     path: "roles",
     permissions: ({ authController }) => ({
@@ -319,6 +328,8 @@ const categoriesCollection = buildCollection<Category>({
     singularName: "Category",
     path: "categories",
     group: "AuzaarPay",
+    icon:"Category",
+
     textSearchEnabled:true,
 
 
@@ -359,11 +370,54 @@ const categoriesCollection = buildCollection<Category>({
 
 });
 
+const subCategoriesCollection = buildCollection<SubCategory>({
+    name: "Sub Categories",
+    singularName: "Sub Category",
+    path: "subCategories",
+    icon:"Category",
+
+    group: "AuzaarPay",
+    textSearchEnabled:true,
+
+
+    permissions: ({ authController }) => ({
+        edit: true,
+        create: false,
+        // we have created the roles object in the navigation builder
+        delete: false
+    }),
+    properties: {
+
+        imageURL: buildProperty({ // The `buildProperty` method is a utility function used for type checking
+            name: "Category Picture",
+            dataType: "string",
+            storage: {
+                storagePath: "categoryImage",
+                acceptedFiles: ["image/*"],
+                storeUrl: true,
+            },
+
+        }),
+       
+        name: {
+            name: "Name",
+            validation: { required: true },
+            dataType: "string",
+            disabled: true,
+            
+        },
+       
+  
+    }
+
+});
+
 const userCollection = buildCollection<User>({
     name: "Users",
     singularName: "User",
     path: "users",
     group: "AuzaarPay",
+    icon: "Person",
     textSearchEnabled:true,
 
     permissions: ({ authController }) => ({
@@ -636,6 +690,7 @@ const ordersCollection = buildCollection<Order>({
   path: "userOrders",
   group: "AuzaarPay",
   textSearchEnabled:true,
+  icon:"Article",
 
 
   permissions: ({ authController }) => ({
@@ -683,7 +738,7 @@ const ordersCollection = buildCollection<Order>({
     disabled : true,
 },
 invoice: {
-    name: "Commission",
+    name: "Invoice",
     validation: { required: true },
     url: true,
     dataType: "string",
@@ -776,6 +831,7 @@ const transactionsCollection = buildCollection<Transaction>({
     singularName: "Transaction",
     path: "userTransactions",
     group: "AuzaarPay",
+    icon: "AttachMoney",
     textSearchEnabled:true,
 
 
@@ -827,21 +883,20 @@ const transactionsCollection = buildCollection<Transaction>({
     }
   });
   const adminCollections = [
-   userCollection, cartCollection, ordersCollection, categoriesCollection, transactionsCollection,rolesCollection 
+   userCollection, cartCollection, ordersCollection, categoriesCollection, subCategoriesCollection, transactionsCollection,rolesCollection 
 ];
 const managerCollections = [
-    userCollection, cartCollection, ordersCollection, categoriesCollection, transactionsCollection 
+    userCollection, cartCollection, ordersCollection, categoriesCollection, subCategoriesCollection, transactionsCollection 
  ];
 const userCollections = [
     userCollection, 
  ];
  const categoryCollections = [
-    categoriesCollection, 
+    categoriesCollection, subCategoriesCollection,
  ];
  const noAccessCollections = [
      
  ];
-  
 var roleOfUser = " ";
 export default function App() {
 
@@ -854,19 +909,26 @@ export default function App() {
             throw Error("Stupid Flanders!");
         }
         const db = getFirestore(app);
-        var role2 = "";
+        var role2 = " ";
+        var flag=false;
 
         await getDocs(collection(db, "roles"))
             .then((querySnapshot)=>{               
                  querySnapshot.docs
                     .map((x) => {
-                        if(x.data()["email"]==user?.email)
-            role2=x.data()['role'];
-            else throw Error("You don't have access!");;
+                        if(x.data()["email"]==user?.email){
+                          
+                            role2=x.data()['role'];
+                            flag=true;
+                        }
+            
+            
                     });
                 console.log(role2);
             });
-            console.log(role2);
+            if(!flag) throw Error("No Access!");
+            
+                console.log(role2);
        
        
         const sampleUserData = await Promise.resolve({
@@ -883,6 +945,9 @@ export default function App() {
         // authController.setExtra(sampleUserRoles);
 
         return true;
+
+            
+            
     }, []);
 
     return <FirebaseCMSApp
@@ -890,7 +955,7 @@ export default function App() {
         logo={logo}
         authentication={myAuthenticator}
         textSearchController={textSearchController}
-
+        LoginView={CustomLoginView}
         
         collections={(params) => roleOfUser=="admin" ? adminCollections: roleOfUser=="user" ? userCollections:roleOfUser=="category"?categoryCollections:  managerCollections}
         firebaseConfig={firebaseConfig}
